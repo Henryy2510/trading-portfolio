@@ -1,0 +1,17 @@
+[project]
+name = "trading-portfolio"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "backtesting>=0.6.6",
+    "ipykernel>=7.3.0",
+    "matplotlib>=3.11.1",
+    "numpy>=2.5.2",
+    "pandas>=3.0.5",
+    "scipy>=1.18.0",
+    "statsmodels>=0.14.6",
+    "vectorbt>=1.1.0",
+    "vnstock>=4.0.2",
+]
