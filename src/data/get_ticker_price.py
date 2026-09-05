@@ -1,5 +1,7 @@
-import pandas as pd
 import requests
+import pandas as pd
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 headers = {
     "sec-ch-ua-platform": '"Linux"',
@@ -13,18 +15,23 @@ headers = {
     "Content-Type": "application/json",
 }
 
+vn = ZoneInfo("Asia/Ho_Chi_Minh")
 
 # time format là ISO
 def history_price(
     ticker,
-    time,
+    trading_days,
+    time=None,
 ):
+    if time is None:
+        time = int(datetime.now(vn).timestamp())
+
     params = {
-        "ticker": f"{ticker}",
+        "ticker": ticker,
         "type": "stock",
         "resolution": "D",
-        "to": f"{time}",
-        "countBack": "259",
+        "to": time,
+        "countBack": trading_days,
     }
 
     response = requests.get(
@@ -32,7 +39,6 @@ def history_price(
         params=params,
         headers=headers,
     )
-
-    data = response.json()
-    df = pd.DataFrame(data)
+    # print(response.json()['data'].head())
+    df = pd.DataFrame(response.json()['data'])
     return df
