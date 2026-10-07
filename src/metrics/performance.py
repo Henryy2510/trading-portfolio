@@ -64,3 +64,55 @@ def compute_basic_report(
         "exposure": exposure,
         "ending_portfolio_value": float(equity.iloc[-1]),
     }
+
+
+def compute_comprehensive_metrics(returns: pd.Series, rf_rate: float = 0.02) -> pd.Series:
+    """Calculate broad strategy-level metrics used in the notebook comparison."""
+    if returns.empty or returns.std() == 0:
+        return pd.Series(
+            {
+                "Annual Return": 0,
+                "Annual Volatility": 0,
+                "Sharpe Ratio": 0,
+                "Max Drawdown": 0,
+                "Calmar Ratio": 0,
+                "Sortino Ratio": 0,
+                "Skewness": 0,
+                "Kurtosis": 0,
+                "VaR (95%)": 0,
+                "CVaR (95%)": 0,
+            }
+        )
+
+    returns = returns.dropna()
+    annual_return = (1 + returns.mean()) ** 252 - 1
+    annual_volatility = returns.std() * (252 ** 0.5)
+    sharpe_ratio = (annual_return - rf_rate) / annual_volatility if annual_volatility != 0 else 0
+
+    cumulative = (1 + returns).cumprod()
+    running_max = cumulative.expanding().max()
+    drawdown = (cumulative - running_max) / running_max
+    max_drawdown = drawdown.min()
+    calmar_ratio = annual_return / abs(max_drawdown) if max_drawdown != 0 else 0
+
+    negative_returns = returns[returns < 0]
+    downside_deviation = negative_returns.std() * (252 ** 0.5) if len(negative_returns) > 0 else 0
+    sortino_ratio = (annual_return - rf_rate) / downside_deviation if downside_deviation != 0 else 0
+
+    var_95 = returns.quantile(0.05)
+    cvar_95 = returns[returns <= var_95].mean()
+
+    return pd.Series(
+        {
+            "Annual Return": annual_return,
+            "Annual Volatility": annual_volatility,
+            "Sharpe Ratio": sharpe_ratio,
+            "Max Drawdown": max_drawdown,
+            "Calmar Ratio": calmar_ratio,
+            "Sortino Ratio": sortino_ratio,
+            "Skewness": returns.skew(),
+            "Kurtosis": returns.kurtosis(),
+            "VaR (95%)": var_95,
+            "CVaR (95%)": cvar_95,
+        }
+    )
