@@ -54,3 +54,20 @@
 ├── main.py
 └── README.md
 ```
+
+## Chạy workflow với vnstock
+
+`python main.py` tải OHLCV cho 10 mã trong `config.py` trong khoảng ngày
+`START_DATE`–`END_DATE`, chuẩn hóa dữ liệu, rồi chạy dynamic workflow. Mã nguồn
+thô được lưu tại `data/raw/`; các ma trận OHLCV đã clean được lưu tại
+`data/processed/`. Kết quả gồm thứ hạng các mô hình trên tập train và báo cáo
+backtest out-of-sample trên tập test.
+
+Để dùng ma trận giá đóng cửa từ CSV thay cho tải dữ liệu:
+
+```bash
+python main.py --csv path/to/close_prices.csv
+```
+
+vnstock cần được cài trong môi trường Python đang chạy. Nếu tải một mã thất bại,
+workflow dừng và báo lỗi để tránh âm thầm tạo danh mục từ thiếu mã.

@@ -178,7 +178,7 @@ def _normalize_vnstock_output(result: object) -> pd.DataFrame:
 
 @dataclass
 class vndataprovider:
-    """Minimal VNDataProvider wrapper.
+    """Fetch and normalize OHLCV data through vnstock.
 
     A custom fetcher can be injected for offline or custom vendor use:
     fetcher(ticker, start, end) -> DataFrame
@@ -189,6 +189,8 @@ class vndataprovider:
     fetcher: FetchFunction | None = None
     source: str = "vnstock"
     source_kwargs: dict = field(default_factory=dict)
+    raw_dir: str | Path | None = None
+    processed_dir: str | Path | None = None
 
     def get_universe(self, exchange: str | None = None) -> list[str]:
         raise NotImplementedError(
@@ -208,10 +210,37 @@ class vndataprovider:
 
         raw_frames: dict[str, pd.DataFrame] = {}
         for ticker in tickers:
-            raw = self._fetch_single(str(ticker).upper(), start=start, end=end)
-            raw_frames[str(ticker).upper()] = raw
+            symbol = str(ticker).strip().upper()
+            raw = self._fetch_single(symbol, start=start, end=end)
+            raw_frames[symbol] = raw
+            if self.raw_dir is not None:
+                raw_path = Path(self.raw_dir) / self._range_filename(
+                    f"{symbol}_ohlcv", start, end
+                )
+                raw_path.parent.mkdir(parents=True, exist_ok=True)
+                raw_to_save = raw.copy()
+                has_datetime_index = raw.index.dtype.kind == "M"
+                if has_datetime_index and raw_to_save.index.name is None:
+                    raw_to_save.index.name = self.date_col
+                raw_to_save.to_csv(raw_path, index=has_datetime_index)
 
-        return build_ohlcv_matrices(raw_frames, date_col=self.date_col)
+        matrices = build_ohlcv_matrices(raw_frames, date_col=self.date_col)
+        if self.processed_dir is not None:
+            processed_path = Path(self.processed_dir)
+            processed_path.mkdir(parents=True, exist_ok=True)
+            for field_name, matrix in matrices.items():
+                matrix.to_csv(
+                    processed_path
+                    / self._range_filename(f"{field_name}_matrix", start, end),
+                    index_label="date",
+                )
+        return matrices
+
+    @staticmethod
+    def _range_filename(prefix: str, start, end) -> str:
+        start_label = str(start or "all").replace("/", "-")
+        end_label = str(end or "latest").replace("/", "-")
+        return f"{prefix}_{start_label}_{end_label}.csv"
 
     def _fetch_single(self, ticker: str, start, end) -> pd.DataFrame:
         if self.fetcher is not None:
@@ -219,45 +248,24 @@ class vndataprovider:
             return _normalize_vnstock_output(frame)
 
         try:
-            import vnstock as vn
+            from vnstock import Market
         except ModuleNotFoundError as exc:
             raise RuntimeError(
                 "vnstock is not installed. Install vnstock or pass a custom fetcher."
             ) from exc
 
-        # Try a few adapter shapes from existing vnstock releases.
-        adapters: list[tuple[Callable[..., object], tuple[str, ...]]] = []
-        if hasattr(vn, "stock_historical_data"):
-            adapters.append((vn.stock_historical_data, ("symbol",)))
-            adapters.append((vn.stock_historical_data, ("ticker",)))
+        market = Market(**self.source_kwargs)
+        equity = market.equity
 
-        if hasattr(vn, "stock"):
-            adapters.append((vn.stock, ("symbol",)))
+        # vnstock v4 supports both the bound-symbol API and the symbol keyword API.
+        if callable(equity):
+            try:
+                bound_equity = equity(ticker)
+                if hasattr(bound_equity, "ohlcv"):
+                    result = bound_equity.ohlcv(start=start, end=end)
+                    return _normalize_vnstock_output(result)
+            except TypeError:
+                pass
 
-        if hasattr(vn, "history"):
-            adapters.append((vn.history, ("symbol",)))
-
-        for adapter, names in adapters:
-            for symbol_key in names:
-                for kwargs in (
-                    {symbol_key: ticker, "from_date": start, "to_date": end},
-                    {symbol_key: ticker, "start": start, "end": end},
-                ):
-                    try:
-                        raw = (
-                            adapter(**kwargs, **self.source_kwargs)
-                            if hasattr(adapter, "__code__")
-                            else adapter(**kwargs)
-                        )
-                        frame = _normalize_vnstock_output(raw)
-                        if not frame.empty:
-                            return _normalize_vnstock_output(raw)
-                    except TypeError:
-                        continue
-                    except Exception:
-                        continue
-
-        raise RuntimeError(
-            "Could not infer a supported vnstock API signature for this environment. "
-            "Pass VNDataProvider(fetcher=...) with your VN-stock adapter."
-        )
+        result = equity.ohlcv(symbol=ticker, start=start, end=end)
+        return _normalize_vnstock_output(result)

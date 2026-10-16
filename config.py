@@ -41,6 +41,8 @@ DEFAULT_TICKERS = [
 
 # Data source fallback for local experiments
 LOCAL_STOCK_CLOSE_CSV = "src/data/stock_data.csv"
+RAW_DATA_DIR = "data/raw"
+PROCESSED_DATA_DIR = "data/processed"
 
 # Selection / strategy defaults
 MODEL_SELECTION_WEIGHTS = {

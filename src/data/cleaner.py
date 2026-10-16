@@ -15,7 +15,7 @@ def _pick_date_col(columns: Iterable[str], preferred: str = "date") -> str:
     if preferred in normalized:
         return normalized[preferred]
 
-    for candidate in ("date", "datetime", "trading_date", "tradingdate"):
+    for candidate in ("date", "datetime", "time", "trading_date", "tradingdate"):
         if candidate in normalized:
             return normalized[candidate]
 

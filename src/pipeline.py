@@ -64,11 +64,30 @@ def run_dynamic_workflow(
     if best_callable is None:
         raise RuntimeError(f"No implementation found for best model: {best_model_name}")
 
-    best_weights, _ = optimization_results[best_model_name]
     backtest_report = None
 
     if run_backtest:
-        _, backtest_report = _run_backtest(test_prices, best_weights, fees, slippage, initial_cash)
+        if test_prices.empty:
+            raise ValueError("The selected split date leaves no data for backtesting.")
+
+        # Recompute rolling weights with the training history as warm-up. These
+        # weights use only prices strictly before each return observation.
+        out_of_sample_weights, _ = best_callable(
+            close_prices.sort_index(),
+            lookback_window=lookback_window,
+            rebalance_freq=rebalance_freq,
+        )
+        out_of_sample_weights = out_of_sample_weights.reindex(
+            index=test_prices.index,
+            columns=test_prices.columns,
+        ).fillna(0.0)
+        _, backtest_report = _run_backtest(
+            test_prices,
+            out_of_sample_weights,
+            fees,
+            slippage,
+            initial_cash,
+        )
         # Keep a tiny sanity hook for notebook parity:
         if isinstance(backtest_report, dict):
             backtest_report["best_model"] = best_model_name
