@@ -51,7 +51,7 @@ def reports(report, symbol, is_quarter):
     else:
         params = {
             "symbol": f"{symbol}",
-            "freq": f"{is_quarter}",
+            "freq": "quarter",
         }
 
         response = requests.get(
@@ -180,11 +180,11 @@ def main():
     if args.financial_ratio:
         report_name = "financial-ratio"
     elif args.balance_sheet:
-        report_name = "balance_sheet"
+        report_name = "balance-sheet"
     elif args.income_statement:
-        report_name = "income_statement"
+        report_name = "income-statement"
     elif args.cash_flow:
-        report_name = "cash_flow"
+        report_name = "cashflow"
     else:
         report_name = "report"
 
