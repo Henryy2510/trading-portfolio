@@ -10,16 +10,22 @@ Executes the End-to-End 5-Pillar Pipeline:
 
 from __future__ import annotations
 import argparse
+import os
+import sys
 from pathlib import Path
+
+# Silence matplotlib cache warning
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+
+# Ensure workspace root is in sys.path
+WORKSPACE_ROOT = Path(__file__).resolve().parent
+if str(WORKSPACE_ROOT) not in sys.path:
+    sys.path.insert(0, str(WORKSPACE_ROOT))
+
 import numpy as np
 import pandas as pd
 
-from alpha_factors import AlphaFactory
-from backtest_visualizer import (
-    InstitutionalBacktester,
-    InvestorDashboardVisualizer,
-)
-from config import (
+from src.config import (
     ANNUAL_PROFIT_TARGET_VND,
     DEFAULT_TICKERS,
     END_DATE,
@@ -32,14 +38,17 @@ from config import (
     SECTOR_MAPPING,
     START_DATE,
 )
-from data_loader import load_dataset
-from econometrics_garch import (
+from src.data import load_dataset
+from src.features import AlphaFactory
+from src.risk import (
     CovarianceEstimator,
     EconometricTester,
     GJRGARCHRiskEngine,
     MacroRegimeModel,
 )
-from portfolio_optimizer import GoalBasedPortfolioOptimizer
+from src.portfolio import GoalBasedPortfolioOptimizer
+from src.backtest import InstitutionalBacktester
+from src.visualization import InvestorDashboardVisualizer
 
 
 def run_pipeline(

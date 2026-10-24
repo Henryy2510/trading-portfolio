@@ -17,7 +17,7 @@ def _safe_expected_returns(close: pd.DataFrame, frequency: int = 252) -> pd.Seri
     except ModuleNotFoundError:
         return returns.mean() * frequency
 
-    return pypfopt_expected_returns.mean_historical_return(close, frequency=frequency)
+    return pypfopt_expected_returns.mean_historical_return(close, compounding=False, frequency=frequency)
 
 
 def _safe_sample_cov(close: pd.DataFrame, frequency: int = 252) -> pd.DataFrame:
